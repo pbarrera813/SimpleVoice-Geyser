@@ -18,6 +18,7 @@ const PACKET_SIZE = 960;
 const BUFFER_SIZE = 960 * 20; // 20 packets max
 
 let micBuffer = new Int16Array(BUFFER_SIZE);
+let speechBuffer = new Uint8Array(BUFFER_SIZE);
 let writeIndex = 0;
 let readIndex = 0;
 let available = 0;
@@ -89,6 +90,7 @@ function handleMicMessage(event) {
     for (let i = 0; i < samples.length; i++) {
         const s = Math.max(-1, Math.min(1, samples[i]));
         micBuffer[writeIndex] = s < 0 ? s * 0x8000 : s * 0x7fff;
+        speechBuffer[writeIndex] = speech ? 1 : 0;
 
         writeIndex = (writeIndex + 1) % BUFFER_SIZE;
 
@@ -115,28 +117,32 @@ function handleMicMessage(event) {
     // --- FIXED PACKET FLOW (always consistent timing) ---
     while (available >= PACKET_SIZE) {
         const packet = new Int16Array(PACKET_SIZE);
+        let packetHasSpeech = false;
 
         for (let i = 0; i < PACKET_SIZE; i++) {
             packet[i] = micBuffer[readIndex];
+            if (speechBuffer[readIndex] === 1) {
+                packetHasSpeech = true;
+            }
             readIndex = (readIndex + 1) % BUFFER_SIZE;
         }
 
         available -= PACKET_SIZE;
 
         // --- TRANSMIT DECISION ---
-        if (shouldSendPacket(mode, speech, pttActive)) {
+        if (shouldSendPacket(mode, packetHasSpeech, pttActive)) {
             // avoid buffer reuse issues
             micHandler?.(packet.slice().buffer);
         }
     }
 }
 
-function shouldSendPacket(mode, speech, pttActive) {
+function shouldSendPacket(mode, packetHasSpeech, pttActive) {
     if (muted) return false;
 
     if (mode === "voice") {
-        // VAD
-        return speech;
+        // VAD decision is packet-aware, based on the buffered 960-sample packet.
+        return packetHasSpeech;
     }
 
     if (mode === "ptt") {
@@ -168,6 +174,7 @@ export function stopMic() {
     writeIndex = 0;
     readIndex = 0;
     available = 0;
+    speechBuffer.fill(0);
 
     if (micIndicator) {
         micIndicator.classList.remove("active");
@@ -194,6 +201,7 @@ export function resetAudioState() {
     writeIndex = 0;
     readIndex = 0;
     available = 0;
+    speechBuffer.fill(0);
 }
 
 // audio.js
