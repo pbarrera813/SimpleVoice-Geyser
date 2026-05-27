@@ -1,4 +1,4 @@
-import {onMicData, playAudio, resetAudioState} from "./audio/audio.js";
+import {getAudioRuntime, onMicData, playAudio, resetAudioState} from "./audio/audio.js";
 import {
     decodeSvgV2Frame,
     getAudioCapabilities,
@@ -253,11 +253,14 @@ async function sendCapabilitiesOnce() {
 
     try {
         const caps = await getAudioCapabilities();
+        const runtime = getAudioRuntime();
+        const canUseSvgV2 = caps.supportsSvgV2 && runtime.workletSupported;
+        const canDecodeOpus = caps.supportsOpusDecoder && runtime.workletSupported;
         ws.send(JSON.stringify({
             type: "capabilities",
             audio: {
-                protocols: caps.supportsSvgV2 ? ["legacy", "svg-v2"] : ["legacy"],
-                supportsOpusDecoder: caps.supportsOpusDecoder,
+                protocols: canUseSvgV2 ? ["legacy", "svg-v2"] : ["legacy"],
+                supportsOpusDecoder: canDecodeOpus,
                 secureContext: caps.secureContext,
                 decoder: caps.decoder
             }
@@ -265,7 +268,7 @@ async function sendCapabilitiesOnce() {
 
         log(
             `[AudioRX] Client capabilities sent: ` +
-            `svg-v2=${caps.supportsSvgV2} opusDecoder=${caps.supportsOpusDecoder} secure=${caps.secureContext}`
+            `svg-v2=${canUseSvgV2} opusDecoder=${canDecodeOpus} secure=${caps.secureContext}`
         );
     } catch (err) {
         rxDecoderFallbacks++;
