@@ -26,6 +26,7 @@ public final class SvgCore {
     public final Platform platform;
     private static SvgCore instance;
     public static final String VERSION = "0.1.1-Dev";
+    public static final String BUILD_ID = BuildInfo.BUILD_ID;
     private final SvgConfig config;
     private VoiceChatBridge vcBridge;
     private final ConnectionManager connectionManager;
@@ -46,7 +47,7 @@ public final class SvgCore {
 
         Boolean checkUpdate = config.UPDATE_CHECKER_ENABLED.get();
         if (Boolean.TRUE.equals(checkUpdate)) {
-            new UpdateChecker(VERSION, platform).check();
+            new UpdateChecker(VERSION, BUILD_ID, platform).check();
         }
 
         new AudioThread();

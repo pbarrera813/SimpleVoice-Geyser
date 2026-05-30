@@ -31,7 +31,8 @@ const DisconnectPolicy = {
     FATAL: new Set([4003, 4004, 4005]),
     NO_RECONNECT: new Set([4001, 4004, 4005, 4006]),
     TIMEOUT: 4002,
-    SERVER_SHUTDOWN: 4006
+    SERVER_SHUTDOWN: 4006,
+    OUTDATED: 4008
 };
 
 export function initWebSocket() {
@@ -82,7 +83,11 @@ function createSocket(onStatusChange) {
     fatalAuthError = false;
 
     ws.onopen = () => {
-        ws.send(JSON.stringify({ type: "join", ...lastCredentials }));
+        ws.send(JSON.stringify({
+            type: "join",
+            ...lastCredentials,
+            build: window.BUILD_ID || "unknown"
+        }));
         log("Connected.");
         reconnectAttempts = 0;
         onStatusChange(true, lastCredentials.username);
@@ -93,22 +98,23 @@ function createSocket(onStatusChange) {
             try {
                 const data = JSON.parse(event.data);
                 const msg = String(data.message || "").toLowerCase();
+                const type = String(data.type || "").toLowerCase();
 
                 if (data?.fatal === true) {
                     fatalAuthError = true;
                     stopReconnection();
                 }
 
-                if (data.type === "status" && msg.includes("connected as")) {
+                if (type === "status" && msg.includes("connected as")) {
                     hasJoined = true;
                     await sendCapabilitiesOnce();
                 }
 
-                if (data.type === "capabilities_ack") {
+                if (type === "capabilities_ack") {
                     log(`[AudioRX] Server selected transport mode: ${data.selectedMode || "legacy"}`);
                 }
 
-                if (data.type === "error") {
+                if (type === "error") {
                     const isFatalError = msg.includes("bedrock player to join") ||
                         msg.includes("use /svg pswd") ||
                         msg.includes("access denied:") ||
@@ -148,6 +154,13 @@ function createSocket(onStatusChange) {
         resetAudioState();
         onStatusChange(false);
 
+        if (code === DisconnectPolicy.OUTDATED || reason === "update_required") {
+            stopReconnection();
+            log("Outdated client. Reloading...");
+            alert("Update required. Reloading page.");
+            location.reload();
+            return;
+        }
         if (DisconnectPolicy.FATAL.has(code) || reason === "fatal") {
             fatalAuthError = true;
             stopReconnection();
