@@ -3,6 +3,7 @@ package io.github.theodoremeyer.simplevoicegeyser.core.server.connection;
 import io.github.theodoremeyer.simplevoicegeyser.core.SvgCore;
 import io.github.theodoremeyer.simplevoicegeyser.core.api.sender.SvgPlayer;
 import io.github.theodoremeyer.simplevoicegeyser.core.audio.AudioSessionNegotiation;
+import io.github.theodoremeyer.simplevoicegeyser.core.server.connection.compatibility.ClientIdentity;
 import org.eclipse.jetty.websocket.api.Session;
 
 import java.util.Map;
@@ -28,12 +29,14 @@ public final class ConnectionManager {
      * @param session session player is connected through
      * @param player player itself
      * @param audioNegotiation the known info negotiator for the session
+     * @param clientIdentity validated client identity metadata
      * @return the player Connection
      */
     public SvgConnection connect(
             Session session,
             SvgPlayer player,
-            AudioSessionNegotiation audioNegotiation
+            AudioSessionNegotiation audioNegotiation,
+            ClientIdentity clientIdentity
     ) {
 
         SvgConnection oldConnection = connections.remove(player.getUniqueId());
@@ -49,7 +52,7 @@ public final class ConnectionManager {
             );
         }
 
-        SvgConnection connection = new SvgConnection(session, player, audioNegotiation);
+        SvgConnection connection = new SvgConnection(session, player, audioNegotiation, clientIdentity);
         connections.put(player.getUniqueId(), connection);
 
         SvgCore.getLogger().info(

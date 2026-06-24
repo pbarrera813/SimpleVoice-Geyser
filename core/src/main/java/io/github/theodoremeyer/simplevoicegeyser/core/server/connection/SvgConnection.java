@@ -7,6 +7,7 @@ import io.github.theodoremeyer.simplevoicegeyser.core.api.sender.SvgPlayer;
 import io.github.theodoremeyer.simplevoicegeyser.core.audio.AudioSessionNegotiation;
 import io.github.theodoremeyer.simplevoicegeyser.core.audio.SvgAudioListener;
 import io.github.theodoremeyer.simplevoicegeyser.core.audio.SvgAudioSender;
+import io.github.theodoremeyer.simplevoicegeyser.core.server.connection.compatibility.ClientIdentity;
 import org.eclipse.jetty.websocket.api.Session;
 import org.json.JSONObject;
 
@@ -26,6 +27,7 @@ public final class SvgConnection {
     private SvgAudioSender audioSender;
     private SvgAudioListener audioListener;
     private final AudioSessionNegotiation audioNegotiation;
+    private final ClientIdentity clientIdentity;
     private volatile boolean authenticated;
     private volatile boolean closed;
 
@@ -34,12 +36,19 @@ public final class SvgConnection {
      * @param session session to connect with
      * @param player player connecting
      * @param audioNegotiation negotiation
+     * @param clientIdentity validated client identity metadata
      */
-    SvgConnection(Session session, SvgPlayer player, AudioSessionNegotiation audioNegotiation) {
+    SvgConnection(
+            Session session,
+            SvgPlayer player,
+            AudioSessionNegotiation audioNegotiation,
+            ClientIdentity clientIdentity
+    ) {
         this.player = player;
         this.uuid = player.getUniqueId();
         this.session = session;
         this.audioNegotiation = audioNegotiation;
+        this.clientIdentity = clientIdentity;
     }
 
     /**
@@ -73,7 +82,12 @@ public final class SvgConnection {
         audioSender = new SvgAudioSender(api, uuid);
         authenticated = true;
 
-        SvgCore.getLogger().debug("SvgConnection: Authenticated connection: " + uuid);
+        SvgCore.getLogger().debug(
+                "SvgConnection: Authenticated connection: "
+                        + uuid
+                        + " client="
+                        + clientIdentity.toLogString()
+        );
     }
 
     /**
@@ -213,5 +227,13 @@ public final class SvgConnection {
      */
     public SvgAudioSender getAudioSender() {
         return audioSender;
+    }
+
+    /**
+     * Get validated client identity metadata.
+     * @return client identity
+     */
+    public ClientIdentity getClientIdentity() {
+        return clientIdentity;
     }
 }
